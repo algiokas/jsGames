@@ -1,0 +1,53 @@
+html, body {
+    margin: 0;
+    min-height: 100%;
+}
+
+header {
+    background-color: #040404;
+}
+
+#main-header {
+    width: 100%;
+    background-color: #040404;
+    overflow: hidden;
+}
+
+.site-nav-home {
+    margin-left: auto;
+    margin-right: auto;
+    color: aquamarine;
+    font-size: 40pt;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.background {
+    margin:0;
+    padding:0;
+    height: 100%;
+    background-color: #ddd
+}
+
+.sudoku-board {
+    z-index: 1;
+}
+
+.sudoku-game {
+    background-color: #fff;
+    z-index: 0;
+}
+
+.center {
+    margin: auto;
+}
+
+.game-container {
+    position: relative;
+    height: 600px;
+}
+
+.game-element {
+    position: absolute;
+    left: 50%;
+    top: 30px;
+}
