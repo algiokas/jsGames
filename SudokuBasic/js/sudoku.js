@@ -21,9 +21,9 @@ canvas_game.setAttribute("height", board_height.toString());
 canvas_game.setAttribute("style", negMargin);
 
 ctx_game.font = "30px Comic Sans MS";
-ctx_game.fillStyle = "red";
 ctx_game.textAlign = "center";
 
+var highlights = Array.from(Array(num_cells_x * num_cells_y), () => 0);
 
 function getMousePos(canvas, event) {
     var rect = canvas.getBoundingClientRect();
@@ -38,6 +38,19 @@ function isDigit(n) {
     && (n > 0) && (n < 10) && (n == Math.floor(n));
 }
 
+function randomDigit() {
+    return Math.floor(Math.random() * (9)) + 1;
+}
+
+var appColors = (function() {
+    return {
+        text: "#FF0000",
+        lightGray: "#D0D0D0",
+        darkGray: "#A0A0A0",
+    }
+})();
+
+//Wrapper module for storing/accessing numeric data in localStorage
 var gameData = (function() {
     return {
         set: function(key, val) {
@@ -49,7 +62,199 @@ var gameData = (function() {
     }
 })();
 
+//Module that contains functions related to 
 var board = (function() {
+    //Get the 2d co-ordinates of a cell based on its 1d index
+    function IgetCoordinates(idx) {
+        return {
+            row: Math.floor(idx / num_cells_x),
+            col: idx % num_cells_x
+        }
+    };
+
+    //Get the 1d index of a cell based on its co-ordinates
+    function IgetIndex(x, y) {
+        return x + (y * num_cells_x);
+    }
+
+    //Get the indices of all other cells in the same column as the cell at idx
+    function getColIndices(idx) {
+        let colNum = IgetCoordinates(idx).col;
+        let i;
+        let result = [];
+        for (i = 0; i < num_cells_y; i++) {
+            result.push(colNum + (i * num_cells_x));
+        }
+        console.log(result);
+        return result;
+    }
+
+    //Get the indices of all other cells in the same row as the cell at idx
+    function getRowIndices(idx) {
+        let rowNum = IgetCoordinates(idx).row;
+        let i;
+        let result = [];
+        for (i = 0; i < num_cells_x; i++) {
+            result.push((rowNum * num_cells_x) + i);
+        }
+        console.log(result);
+        return result;
+    }
+
+    //Get the indices of all other cells in the same 3x3 box as the cell at idx
+    function getBoxIndices(idx) {
+        let coords = IgetCoordinates(idx);
+        let hThird = Math.floor(coords.col / 3);
+        let vThird = Math.floor(coords.row / 3);
+
+        let result = [];
+        let i, j;
+        for (j = vThird * 3; j < (vThird+1) * 3; j++) {
+            for (i = hThird * 3; i < (hThird+1) * 3; i++) {
+                result.push(IgetIndex(i, j));
+            }
+        }
+        console.log(result);
+        return result;
+    }
+
+    //(Internal) get the board co-ordinates of a cell based on its canvas co-ordinates
+    function IgetCellByPosition(x, y) {
+        return {
+            row: Math.floor(y / cellSize),
+            col: Math.floor(x / cellSize)
+        }
+    }
+
+    //(Internal) get the canvas co-ordinates of the center point of the cell at idx
+    function  IgetCellCenter(idx) {
+        var cellCoords = IgetCoordinates(idx);
+        return {
+            x: (cellSize / 2) + (cellSize * cellCoords.col),
+            y: (cellSize / 1.5) + (cellSize * cellCoords.row)
+        }
+    }
+
+    //(Internal) get the canvas co-ordinates of the top left point of the cell at idx
+    function IgetCellTopLeft(idx) {
+        var cellCoords = IgetCoordinates(idx);
+        return {
+            x: (cellSize * cellCoords.col),
+            y: (cellSize * cellCoords.row)
+        }
+    }
+
+    //(Internal) get the entire neighborhood (row, column, and box) of a cell
+    //In sudoku, each cell must have a value different than every other cell in its neighborhood
+    function IgetNeighborhood(idx) {
+        let result = getColIndices(idx);
+        result = result.concat(getBoxIndices(idx));
+        result = result.concat(getRowIndices(idx));
+        return result;
+    }
+
+    //(Internal) returns a set containing one of each of the values in the neighborhood of a cell
+    function IgetNeighborhoodVals(idx) {
+        let neighborhood = this.getNeighborhood();
+        let result = new set([]);
+        neighborhood.forEach(function(idx) {
+            result.add(gameData.get(idx));
+        });
+        return result;
+    }
+
+    var identity = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    
+    //Generates a random permutation of digits using a knuth shuffle
+    function randomPermutation() {
+        let result = [];
+        let temp = identity.slice();
+        let whichElement;
+        while(temp.length > 0) {
+            whichElement = Math.floor(Math.random() * temp.length - 0.5);
+            result.push(Number(temp.splice(whichElement, 1)));
+        }
+        return result;
+    }
+
+    function randomPConstrained() {
+        return randomPermutation();
+    }
+
+    function fillBoard() {
+        let i, j;
+        let row;
+        for (i = 0; i < num_cells_y; i++) {
+            row = ((i < 1) ? randomPermutation() : randomPConstrained());
+            for (j = 0; j < num_cells_x; j++) {
+                gameData.set(j + (num_cells_x * i), row[j]);
+            }
+        }
+    }
+
+    // var i;
+    // for(i = 0; i < num_cells_x * num_cells_y; i++) {
+    //     gameData.set(i, Math.floor(Math.random() * 9.5));
+    // }
+
+    
+    fillBoard();
+
+
+    return {
+        getCoordinates: function(idx) {
+            return IgetCoordinates(idx);
+        },
+    
+        getIndex: function(x, y) {
+            return IgetIndex(x, y);
+        },
+        //Public interface for IgetCellByPosition()
+        getCellByPosition: function(x, y) {
+            return IgetCellByPosition(x, y);
+        },
+
+        //Public interface for IgetCellCenter()
+        getCellCenter: function(idx) {
+            return IgetCellCenter(idx);
+        },
+
+        getCellTopLeft: function(idx) {
+            return IgetCellTopLeft(idx);
+        },
+
+        //Public interface for IgetNeighborhood()
+        getNeighborhood: function(idx) {
+            return IgetNeighborhood(idx);
+        },
+
+        //Public interface for IgetNeighborhoodVals()
+        getNeighborhoodVals: function(idx) {
+            return IgetNeighborhoodVals(idx);
+        }
+
+    }
+})();
+
+var game = (function() {
+
+    return {
+        getCell: function(row, col) {
+            var cellNum = col + (num_cells_x * row);
+            var cellVal = gameData.get(cellNum);
+            //console.log('Reading "' + cellVal + '" from storage location "' + cellNum + '"')
+            return Number(cellVal);
+        },
+
+        setCell: function(row, col, val) {
+            var cellNum = col + (num_cells_x * row);
+            //console.log('Writing "' + val + '" to storage location "' + cellNum + '"')
+            gameData.set(cellNum, val);
+        },
+    }
+})();
+
+var render = (function() {
     function drawBoard() {
         var i;
         ctx_static.strokeStyle = "black";
@@ -71,78 +276,20 @@ var board = (function() {
 
     drawBoard();
 
-    return {
-        getCellByPosition: function(x, y) {
-            return {
-                row: Math.floor(y / cellSize),
-                col: Math.floor(x / cellSize)
-            }
-        },
-
-        getCoordinates: function(idx) {
-            return {
-                row: Math.floor(idx / num_cells_x),
-                col: idx % num_cells_x
-            }
-        },
-
-        getCellCenter: function(idx) {
-            var cellCoords = this.getCoordinates(idx);
-            return {
-                x: (cellSize / 2) + (cellSize * cellCoords.col),
-                y: (cellSize / 1.5) + (cellSize * cellCoords.row)
-            }
-        }
-
-    }
-})();
-
-var game = (function() {
-    var identity = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    
-    function randomPermutation() {
-        let result = [];
-        let temp = identity.slice();
-        let whichElement;
-        while(temp.length > 0) {
-            whichElement = Math.floor(Math.random() * temp.length - 0.5);
-            result.push(Number(temp.splice(whichElement, 1)));
-        }
-        return result;
+    function highlightCell(idx, color) {
+        let topLeft = board.getCellTopLeft(idx);
+        ctx_game.fillStyle = color;
+        ctx_game.fillRect(topLeft.x, topLeft.y, cellSize, cellSize);
     }
 
-    function fillBoard() {
-        let i, j;
-        let row;
-        for (i = 0; i < num_cells_y; i++) {
-            row = randomPermutation();
-            for (j = 0; j < num_cells_x; j++) {
-                gameData.set(j + (num_cells_x * i), row[j]);
-            }
-        }
+    function drawNumber(idx, val) {
+        var center = board.getCellCenter(idx);
+        ctx_game.fillStyle = appColors.text;
+        ctx_game.fillText(val, center.x, center.y);
     }
-
-    // var i;
-    // for(i = 0; i < num_cells_x * num_cells_y; i++) {
-    //     gameData.set(i, Math.floor(Math.random() * 9.5));
-    // }
-
-    
-    fillBoard();
 
     return {
-        getCell: function(row, col) {
-            var cellNum = col + (num_cells_x * row);
-            var cellVal = gameData.get(cellNum);
-            //console.log('Reading "' + cellVal + '" from storage location "' + cellNum + '"')
-            return Number(cellVal);
-        },
 
-        setCell: function(row, col, val) {
-            var cellNum = col + (num_cells_x * row);
-            //console.log('Writing "' + val + '" to storage location "' + cellNum + '"')
-            gameData.set(cellNum, val);
-        },
 
         updateView: function() {
             var i;
@@ -150,24 +297,31 @@ var game = (function() {
             ctx_game.clearRect(0, 0, board_width, board_height);
             for (i=0; i<num_cells_x * num_cells_y; i++) {
                 cellVal = gameData.get(i)
+                if (highlights[i] > 0) {
+                    highlightCell(i, (highlights[i] == 2) ? appColors.darkGray : appColors.lightGray);
+                }
                 if (Number(cellVal) > 0) {
-                    var center = board.getCellCenter(i);
-                    ctx_game.fillText(cellVal, center.x, center.y);
+                    drawNumber(i, cellVal);
                 }
             }
-            console.log(randomPermutation());
         }
-
     }
 })();
 
-game.updateView();
+render.updateView();
 
 canvas_static.addEventListener('click', event => {
-    var mousePos = getMousePos(canvas_static, event);
-    var mouseCoords = board.getCellByPosition(mousePos.x, mousePos.y);
-    //console.log("(" + mousePos.x + ", " + mousePos.y + ") = (row: " + mouseCoords.row + ", col: " + mouseCoords.col + ")");
-    var currentVal = game.getCell(mouseCoords.row, mouseCoords.col);
+    let mousePos = getMousePos(canvas_static, event);
+    let mouseCoords = board.getCellByPosition(mousePos.x, mousePos.y);
+    let mouseIdx = board.getIndex(mouseCoords.col, mouseCoords.row)
+    let n = board.getNeighborhood(mouseIdx);
+    n.forEach(function(cell) {
+        highlights[cell] = 1;
+    });
+    highlights[mouseIdx] = 2;
+    console.log(highlights);
+    render.updateView();
+    let currentVal = game.getCell(mouseCoords.row, mouseCoords.col);
 
     let input = prompt("Enter value for cell (" + mouseCoords.row + ", " + mouseCoords.col + ") current value: " + currentVal, "1-9");
     if (isDigit(input)) {
@@ -175,7 +329,8 @@ canvas_static.addEventListener('click', event => {
     } else {
         alert("Invalid input");
     }
-    game.updateView();
+    render.updateView();
+    highlights.fill(0);
 });
 
 window.addEventListener("keyup", event => {
