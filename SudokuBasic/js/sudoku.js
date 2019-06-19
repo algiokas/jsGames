@@ -33,6 +33,11 @@ function getMousePos(canvas, event) {
     };
 }
 
+function isDigit(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n) 
+    && (n > 0) && (n < 10) && (n == Math.floor(n));
+}
+
 var gameData = (function() {
     return {
         set: function(key, val) {
@@ -94,10 +99,10 @@ var board = (function() {
 
 var game = (function() {
     var identity = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    
     function randomPermutation() {
         let result = [];
-        let temp = identity;
-        console.log(temp);
+        let temp = identity.slice();
         let whichElement;
         while(temp.length > 0) {
             whichElement = Math.floor(Math.random() * temp.length - 0.5);
@@ -105,10 +110,25 @@ var game = (function() {
         }
         return result;
     }
-    var i;
-    for(i = 0; i < num_cells_x * num_cells_y; i++) {
-        gameData.set(i, Math.floor(Math.random()));
+
+    function fillBoard() {
+        let i, j;
+        let row;
+        for (i = 0; i < num_cells_y; i++) {
+            row = randomPermutation();
+            for (j = 0; j < num_cells_x; j++) {
+                gameData.set(j + (num_cells_x * i), row[j]);
+            }
+        }
     }
+
+    // var i;
+    // for(i = 0; i < num_cells_x * num_cells_y; i++) {
+    //     gameData.set(i, Math.floor(Math.random() * 9.5));
+    // }
+
+    
+    fillBoard();
 
     return {
         getCell: function(row, col) {
@@ -137,8 +157,11 @@ var game = (function() {
             }
             console.log(randomPermutation());
         }
+
     }
 })();
+
+game.updateView();
 
 canvas_static.addEventListener('click', event => {
     var mousePos = getMousePos(canvas_static, event);
@@ -146,8 +169,12 @@ canvas_static.addEventListener('click', event => {
     //console.log("(" + mousePos.x + ", " + mousePos.y + ") = (row: " + mouseCoords.row + ", col: " + mouseCoords.col + ")");
     var currentVal = game.getCell(mouseCoords.row, mouseCoords.col);
 
-    var inputNum = prompt("Enter value for cell (" + mouseCoords.row + ", " + mouseCoords.col + ") current value: " + currentVal, "1-9");
-    game.setCell(mouseCoords.row, mouseCoords.col, inputNum);
+    let input = prompt("Enter value for cell (" + mouseCoords.row + ", " + mouseCoords.col + ") current value: " + currentVal, "1-9");
+    if (isDigit(input)) {
+        game.setCell(mouseCoords.row, mouseCoords.col, input);
+    } else {
+        alert("Invalid input");
+    }
     game.updateView();
 });
 
