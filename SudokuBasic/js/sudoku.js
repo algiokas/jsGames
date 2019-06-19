@@ -26,7 +26,7 @@ ctx_game.textAlign = "center";
 var highlights = Array.from(Array(num_cells_x * num_cells_y), () => 0);
 
 function getMousePos(canvas, event) {
-    var rect = canvas.getBoundingClientRect();
+    let rect = canvas.getBoundingClientRect();
     return {
         x: event.clientX - rect.left,
         y: event.clientY - rect.top
@@ -38,8 +38,12 @@ function isDigit(n) {
     && (n > 0) && (n < 10) && (n == Math.floor(n));
 }
 
+function randInt(min, max) {
+    return Math.floor(Math.random() * max) + min;
+}
+
 function randomDigit() {
-    return Math.floor(Math.random() * (9)) + 1;
+    return randInt(1, 9);
 }
 
 var appColors = (function() {
@@ -52,6 +56,8 @@ var appColors = (function() {
 
 //Wrapper module for storing/accessing numeric data in localStorage
 var gameData = (function() {
+    localStorage.clear();
+
     return {
         set: function(key, val) {
             localStorage.setItem(key.toString(), val.toString());
@@ -64,6 +70,8 @@ var gameData = (function() {
 
 //Module that contains functions related to 
 var board = (function() {
+    
+    var identity = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     //Get the 2d co-ordinates of a cell based on its 1d index
     function IgetCoordinates(idx) {
         return {
@@ -85,7 +93,6 @@ var board = (function() {
         for (i = 0; i < num_cells_y; i++) {
             result.push(colNum + (i * num_cells_x));
         }
-        console.log(result);
         return result;
     }
 
@@ -97,7 +104,6 @@ var board = (function() {
         for (i = 0; i < num_cells_x; i++) {
             result.push((rowNum * num_cells_x) + i);
         }
-        console.log(result);
         return result;
     }
 
@@ -114,7 +120,6 @@ var board = (function() {
                 result.push(IgetIndex(i, j));
             }
         }
-        console.log(result);
         return result;
     }
 
@@ -128,7 +133,7 @@ var board = (function() {
 
     //(Internal) get the canvas co-ordinates of the center point of the cell at idx
     function  IgetCellCenter(idx) {
-        var cellCoords = IgetCoordinates(idx);
+        let cellCoords = IgetCoordinates(idx);
         return {
             x: (cellSize / 2) + (cellSize * cellCoords.col),
             y: (cellSize / 1.5) + (cellSize * cellCoords.row)
@@ -137,7 +142,7 @@ var board = (function() {
 
     //(Internal) get the canvas co-ordinates of the top left point of the cell at idx
     function IgetCellTopLeft(idx) {
-        var cellCoords = IgetCoordinates(idx);
+        let cellCoords = IgetCoordinates(idx);
         return {
             x: (cellSize * cellCoords.col),
             y: (cellSize * cellCoords.row)
@@ -153,50 +158,67 @@ var board = (function() {
         return result;
     }
 
-    //(Internal) returns a set containing one of each of the values in the neighborhood of a cell
+    //(Internal) returns a set containing ethe values in the neighborhood of a cell with no duplicates
     function IgetNeighborhoodVals(idx) {
-        let neighborhood = this.getNeighborhood();
-        let result = new set([]);
+        let neighborhood = IgetNeighborhood(idx);
+        let result = new Set([]);
         neighborhood.forEach(function(idx) {
-            result.add(gameData.get(idx));
+            let val = gameData.get(idx);
+            if (val > 0) {
+                result.add(Number(val));
+            }
         });
         return result;
     }
 
-    var identity = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     
     //Generates a random permutation of digits using a knuth shuffle
     function randomPermutation() {
         let result = [];
-        let temp = identity.slice();
+        let idCopy = identity.slice();
         let whichElement;
-        while(temp.length > 0) {
-            whichElement = Math.floor(Math.random() * temp.length - 0.5);
-            result.push(Number(temp.splice(whichElement, 1)));
+        while(idCopy.length > 0) {
+            whichElement = Math.floor(Math.random() * idCopy.length - 0.5);
+            result.push(Number(idCopy.splice(whichElement, 1)));
         }
+        console.log(result);
         return result;
     }
 
-    function randomPConstrained() {
-        return randomPermutation();
+    function searchAndSwap(arr, startIndex, isValid) {
+        let i;
+        let end = arr.slice(startIndex);
+        for (i = 0; i < end.length; i++) {
+
+        }
+    }
+
+    function randomPConstrained(row) {
+        let i, cellIdx, end, validDigits, nVals, whichElement;
+        let result = randomPermutation();
+        for (i = 0; i < num_cells_x; i++) { //iterating over a row
+            cellIdx = IgetIndex(i, row); //get the cell index for each cell in the row
+            end = result.slice(i);
+            nVals = IgetNeighborhoodVals(cellIdx); //check which digits are present in the neighborhood of the cell
+            validDigits = idCopy.filter(x => !(nVals.has(x) || result.has(x))); //get an array of digits that are _not_ present in the neighborhood
+
+            whichElement = randInt(0, validDigits.length - 1); //pick a random element from the list of valid elements
+            result.add(validDigits[whichElement]); //add that randomly chosen element to the row
+        }
+        console.log(Array.from(result));
+        return Array.from(result);
     }
 
     function fillBoard() {
         let i, j;
         let row;
         for (i = 0; i < num_cells_y; i++) {
-            row = ((i < 1) ? randomPermutation() : randomPConstrained());
+            row = ((i < 1) ? randomPermutation() : randomPConstrained(i));
             for (j = 0; j < num_cells_x; j++) {
                 gameData.set(j + (num_cells_x * i), row[j]);
             }
         }
     }
-
-    // var i;
-    // for(i = 0; i < num_cells_x * num_cells_y; i++) {
-    //     gameData.set(i, Math.floor(Math.random() * 9.5));
-    // }
-
     
     fillBoard();
 
@@ -240,15 +262,13 @@ var game = (function() {
 
     return {
         getCell: function(row, col) {
-            var cellNum = col + (num_cells_x * row);
-            var cellVal = gameData.get(cellNum);
-            //console.log('Reading "' + cellVal + '" from storage location "' + cellNum + '"')
+            let cellNum = col + (num_cells_x * row);
+            let cellVal = gameData.get(cellNum);
             return Number(cellVal);
         },
 
         setCell: function(row, col, val) {
-            var cellNum = col + (num_cells_x * row);
-            //console.log('Writing "' + val + '" to storage location "' + cellNum + '"')
+            let cellNum = col + (num_cells_x * row);
             gameData.set(cellNum, val);
         },
     }
@@ -256,7 +276,7 @@ var game = (function() {
 
 var render = (function() {
     function drawBoard() {
-        var i;
+        let i;
         ctx_static.strokeStyle = "black";
         for (i = 0; i <= num_cells_x; i++) {
             ctx_static.beginPath();
@@ -283,7 +303,7 @@ var render = (function() {
     }
 
     function drawNumber(idx, val) {
-        var center = board.getCellCenter(idx);
+        let center = board.getCellCenter(idx);
         ctx_game.fillStyle = appColors.text;
         ctx_game.fillText(val, center.x, center.y);
     }
@@ -292,8 +312,8 @@ var render = (function() {
 
 
         updateView: function() {
-            var i;
-            var cellVal;
+            let i;
+            let cellVal;
             ctx_game.clearRect(0, 0, board_width, board_height);
             for (i=0; i<num_cells_x * num_cells_y; i++) {
                 cellVal = gameData.get(i)
@@ -319,13 +339,12 @@ canvas_static.addEventListener('click', event => {
         highlights[cell] = 1;
     });
     highlights[mouseIdx] = 2;
-    console.log(highlights);
     render.updateView();
-    let currentVal = game.getCell(mouseCoords.row, mouseCoords.col);
+    let currentVal = gameData.get(mouseIdx);
 
     let input = prompt("Enter value for cell (" + mouseCoords.row + ", " + mouseCoords.col + ") current value: " + currentVal, "1-9");
     if (isDigit(input)) {
-        game.setCell(mouseCoords.row, mouseCoords.col, input);
+        gameData.set(mouseIdx, input);
     } else {
         alert("Invalid input");
     }
